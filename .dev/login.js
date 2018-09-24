@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
   var api;
@@ -15,10 +15,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var elDevices = elDeviceDialog.querySelector('#devices');
   var elDevicesOkBtn = elDeviceDialog.querySelector('#okBtn');
   var elLogoutBtn = document.querySelector('#logoutBtn');
+  var elAddinButton = document.querySelector('.customButton');
 
-  var injectStyles = function() {
+  var injectStyles = function () {
     var styleSheets = ['../bower_components/dialog-polyfill/dialog-polyfill.css'];
-    styleSheets.forEach(function(href) {
+    styleSheets.forEach(function (href) {
       var styleSheet = document.createElement('link');
       styleSheet.setAttribute('rel', 'stylesheet');
       styleSheet.setAttribute('type', 'text/css');
@@ -34,13 +35,20 @@ document.addEventListener('DOMContentLoaded', function() {
     dialogPolyfill.registerDialog(elDeviceDialog);
   }
 
-  var GeotabLogin = (function() {
+  if (elAddinButton) {
+    elAddinButton.addEventListener('click', function (e) {
+      Object.keys(geotab.customButtons).forEach(function (name) {
+        geotab.customButtons[name](e, api, state);
+      });
+    });
+  }
 
+  var GeotabLogin = (function () {
     var authenticationCallback,
       device = JSON.parse(localStorage.getItem('_device'));
 
     function initializeGeotabApi() {
-      api = new GeotabApi(function(detailsCallback) {
+      api = new GeotabApi(function (detailsCallback) {
         authenticationCallback = detailsCallback;
         if (!elLoginDialog.open) {
           elLoginDialog.showModal();
@@ -51,14 +59,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function initalizeAddin() {
-      Object.keys(geotab.addin).forEach(function(name) {
+      Object.keys(geotab.addin).forEach(function (name) {
         var addin = geotab.addin[name];
 
         if (addin.isInitialize) {
           addin.focus(api, state);
         } else {
-          addin = geotab.addin[name] = addin(api, state);
-          addin.initialize(api, state, function() {
+          addin = typeof addin === 'function' ? geotab.addin[name] = addin(api, state) : addin;
+          addin.initialize(api, state, function () {
             addin.isInitialize = true;
             addin.focus(api, state);
           });
@@ -66,41 +74,37 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    function initializeDevice(isDriveAddin) {
-      if (isDriveAddin && !device) {
-        // Mock device for drive addin
-        api.call('Get', {
-          typeName: 'Device',
-          resultsLimit: 1000,
-          search: {
-            fromDate: new Date()
+    function initializeDevice() {
+      // Mock device for drive addin
+      api.call('Get', {
+        typeName: 'Device',
+        resultsLimit: 1000,
+        search: {
+          fromDate: new Date()
+        }
+      }, function (devices) {
+        var options = devices.sort(function (d1, d2) {
+          var name1 = d1.name.toLowerCase();
+          var name2 = d2.name.toLowerCase();
+          if (name1 < name2) {
+            return -1;
+          } else if (name1 > name2) {
+            return 1;
+          } else {
+            return 0;
           }
-        }, function(devices) {
-          var options = devices.sort(function(d1, d2) {
-            var name1 = d1.name.toLowerCase();
-            var name2 = d2.name.toLowerCase();
-            if (name1 < name2) {
-              return -1;
-            } else if (name1 > name2) {
-              return 1;
-            } else {
-              return 0;
-            }
-          }).map(function(d) {
-            return '<option value="' + d.id + '">' + d.name + '</option>';
-          });
-          elDevices.innerHTML = '<option>Select Device</option>' + options.join('');
-          elDeviceDialog.showModal();
-        }, function() {
-
+        }).map(function (d) {
+          return '<option value="' + d.id + '">' + d.name + '</option>';
         });
-      } else {
-        initalizeAddin();
-      }
+        elDevices.innerHTML = '<option>Select Device</option>' + options.join('');
+        elDeviceDialog.showModal();
+      }, function (e) {
+        console.error(`Could not get vehicles: ${e.message}`);
+      });
     }
 
     function intializeInterface(isDriveAddin) {
-      elLoginBtn.addEventListener('click', function(event) {
+      elLoginBtn.addEventListener('click', function (event) {
         var server = elServer.value || 'my.geotab.com',
           database = elDatabase.value,
           email = elEmail.value,
@@ -113,8 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         elLoginError.style.display = 'none';
 
-        authenticationCallback(server, database, email, password, function() {
+        authenticationCallback(server, database, email, password, function (err) {
           elLoginDialog.showModal();
+          if (err) {
+            elLoginError.textContent = err;
+          }
           elLoginError.style.display = 'block';
         });
 
@@ -125,23 +132,28 @@ document.addEventListener('DOMContentLoaded', function() {
         elLoginDialog.close();
       });
 
-      elLogoutBtn.addEventListener('click', function(event) {
+      elLogoutBtn.addEventListener('click', function (event) {
         event.preventDefault();
 
         if (api !== undefined) {
           api.forget();
         }
 
+        Object.keys(geotab.addin).forEach(function (name) {
+          geotab.addin[name].isInitialize = false;
+        });
         device = null;
         state.device = device;
         localStorage.setItem('_device', JSON.stringify(device));
-        initializeDevice(isDriveAddin);
-        Object.keys(geotab.addin).forEach(function(name) {
+        if (isDriveAddin) {
+          initializeDevice();
+        }
+        Object.keys(geotab.addin).forEach(function (name) {
           geotab.addin[name].blur(api, state);
         });
       });
 
-      elDevices.addEventListener('change', function(event) {
+      elDevices.addEventListener('change', function (event) {
         var id = event.target.value;
 
         event.preventDefault();
@@ -155,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      elDevicesOkBtn.addEventListener('click', function(event) {
+      elDevicesOkBtn.addEventListener('click', function (event) {
         event.preventDefault();
 
         if (device) {
@@ -168,16 +180,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // mock state
       state = {
-        getState: function() {
+        getState: function () {
           var hash = location.hash,
             hashLength = hash.length;
           return !hashLength ? {} : rison.decode(location.hash.substring(1, location.hash.length));
         },
-        setState: function(s) {
+        setState: function (s) {
           location.hash = Object.keys(s).length ? '#' + rison.encode(s) : '';
         },
-        gotoPage: function(page, args) {
-          var getUrl = function(targetClass, targetState) {
+        gotoPage: function (page, args) {
+          var getUrl = function (targetClass, targetState) {
             var lcClassHtml = location.pathname.replace(/\./g, '/').toLowerCase(),
               url = document.URL,
               pos = url.toLowerCase().indexOf(lcClassHtml),
@@ -192,17 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (targetClass.toLowerCase() === lcClassHtml) {
               //staying on the same page - just replace hash component
               return url.replace(/\.html.*$/i, '.html' + encodedState);
-            } else {
-              return url.slice(0, pos) + targetClass + '.html' + encodedState;
             }
+            return url.slice(0, pos) + targetClass + '.html' + encodedState;
           };
 
           window.location = getUrl(page, args);
         },
-        hasAccessToPage: function(page) {
+        hasAccessToPage: function (page) {
           return !!page;
         },
-        getGroupFilter: function() {
+        getGroupFilter: function () {
           return [{
             id: 'GroupCompanyId'
           }];
@@ -211,63 +222,67 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!isDriveAddin) {
         initalizeAddin();
+        return;
+      }
+      // mock Drive properties
+      api.mobile = {
+        exists: function () {
+          return true;
+        },
+        getVersion: function () {
+          return '1.1.1';
+        },
+        speak: function (message) {
+          if (!('SpeechSynthesisUtterance' in window)) {
+            console.log('This browser does not supports speech synthesis');
+          } else {
+            var utterThis = new SpeechSynthesisUtterance(message);
+            utterThis.lang = 'en-US';
+            window.speechSynthesis.speak(utterThis);
+          }
+        },
+        notify: function (message, title, id, jsonData, permanent) {
+          var notification,
+            options = {
+              tag: id,
+              body: message,
+              data: jsonData
+            };
+
+          if (!('Notification' in window)) {
+            console.log('This browser does not support notifications');
+          } else if (Notification.permission === 'granted') {
+            notification = new Notification(title, options);
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission(function (permission) {
+              if (permission === 'granted') {
+                notification = new Notification(title, options);
+              }
+            });
+          }
+        },
+        geolocation: navigator.geolocation
+      };
+
+      api.user = JSON.parse(localStorage.getItem('_user'));
+
+      // Drive properties
+      state.device = device;
+      state.driving = true;
+      state.charging = true;
+      state.background = false;
+      state.online = true;
+      state.deviceCommunicating = true;
+
+      if (!device) {
+        initializeDevice();
       } else {
-        initializeDevice(true);
-
-        // mock Drive properties
-        api.mobile = {
-          exists: function() {
-            return true;
-          },
-          getVersion: function() {
-            return '1.1.1';
-          },
-          speak: function(message) {
-            if (!('SpeechSynthesisUtterance' in window)) {
-              console.log('This browser does not supports speech synthesis');
-            } else {
-              var utterThis = new SpeechSynthesisUtterance(message);
-              utterThis.lang = 'en-US';
-              window.speechSynthesis.speak(utterThis);
-            }
-          },
-          notify: function(message, title, id, jsonData, permanent) {
-            var notification,
-              options = {
-                tag: id,
-                body: message,
-                data: jsonData
-              };
-
-            if (!('Notification' in window)) {
-              console.log('This browser does not support notifications');
-            } else if (Notification.permission === 'granted') {
-              notification = new Notification(title, options);
-            } else if (Notification.permission !== 'denied') {
-              Notification.requestPermission(function(permission) {
-                if (permission === 'granted') {
-                  notification = new Notification(title, options);
-                }
-              });
-            }
-          },
-          geolocation: navigator.geolocation
-        };
-
-        api.user = JSON.parse(localStorage.getItem('_user'));
-
-        // Drive properties
-        state.device = device;
-        state.driving = true;
-        state.charging = true;
-        state.background = false;
-        state.online = true;
-        state.deviceCommunicating = true;
+        initalizeAddin();
       }
     }
 
-    return function() {
-      this.initialize = function(isDriveAddin) {
+    return function () {
+      this.initialize = function (isDriveAddin) {
         initializeGeotabApi();
         intializeInterface(isDriveAddin);
       };
