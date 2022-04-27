@@ -2,8 +2,6 @@
  * @returns {{initialize: Function, focus: Function, blur: Function}}
  */
 
-
-
 geotab.addin.addinFuelTransactionImport_fp = function () {
     'use strict';
 
