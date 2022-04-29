@@ -1384,18 +1384,11 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
                 return doCalls(calls);
             };
         };
-
-
-
-
         toggleImportProvider(false);
-
         toggleAlert(elAlertInfo, message);
         transactions.forEach(function (transaction, j) {
-
             callSet.push(['Add', { typeName: 'FuelTransaction', entity: transaction }]);
             total++;
-
             if (callSet.length === callLimit || j === transactions.length - 1) {
                 callSets.push(callSet);
                 callSet = [];
@@ -1411,20 +1404,14 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
 
         caller.then(function (results) {
             updateTotal(results);
-
-
             var temp = JSON.stringify(results);
-
             console.log("Transaction Imported with ID: ", temp.replace(/[\[\]"]+/g, ""));
-
             //window.alert("Transaction ID: "+temp.replace(/[\[\]"]+/g, ""));
             clearTransactionsProvider();
             toggleAlert(elAlertSuccess, totalAdded);
 
         }).catch(function (e) {
-
             toggleAlert(elAlertError, e.toString());
-
         });
     };
 
@@ -2307,18 +2294,16 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
         return transactionsToBeChecked;
     }
 
+    // displays the custom json data in the html UI
     var uploadFileProvider = function (e) {
         //get browser timezone and set the global variale
         getTimezonePicker();
-
         e.preventDefault();
         if (elFileProvider.files[0].name.split('.').pop() != "xlsx") {
             alert('Please select xlsx files only!');
             clearAllForException();
         }
-
-
-        toggleAlert(elAlertInfo, 'Parsing... transferring file');
+        toggleAlert(elAlertInfo, 'Parsing...transferring file');
         api.getSession(function (credentials) {
             var fd;
             var xhr;
@@ -2331,14 +2316,11 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
                 }
             });
 
-
             if (window.FormData) {
                 fd = new FormData();
                 xhr = new XMLHttpRequest();
-
                 fd.append('JSON-RPC', parameters);
                 fd.append('fileToUpload', elFileProvider.files[0]);
-
                 xhr.upload.addEventListener('progress', uploadProgress, false);
                 xhr.addEventListener('load', uploadCompleteProviderAsync, false);
                 xhr.addEventListener('error', uploadFailed, false);
@@ -2350,10 +2332,7 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
                 else {
                     xhr.open('POST', getUrl());
                 }
-
-
                 xhr.send(fd);
-
                 xhr.onreadystatechange = function () {
                     if (xhr.readyState == 4 && xhr.status == 200) {
 
@@ -2366,20 +2345,16 @@ geotab.addin.addinFuelTransactionImport_fp = function () {
                             toggleAlert(elAlertError, 'There was an error attempting to upload the file.');
                             clearAllForException();
                         }
-
                         if (data['error']['message'] = "data['error']['message']");
                         {
                             console.log(data['error']['message']);
                             alert("Error importing transaction file" + "\n" + "Please check your xlsx file");
                             clearAllForException();
                         }
-
                     }
                 }
-
-
-
-            } else {
+            } 
+            else {
                 iframeUpload(elForm, getUrl(), parameters);
             }
             database = credentials.database;
